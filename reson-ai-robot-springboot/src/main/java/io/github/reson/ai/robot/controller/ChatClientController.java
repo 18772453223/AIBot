@@ -1,7 +1,9 @@
 package io.github.reson.ai.robot.controller;
 
+import io.github.reson.ai.robot.tools.DateTimeTools;
 import jakarta.annotation.Resource;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +33,7 @@ public class ChatClientController {
     public String generate(@RequestParam(value = "message", defaultValue = "你是谁？") String message) {
         // 一次性返回结果
         return chatClient.prompt()
+                .tools(new DateTimeTools())
                 .user(message)
                 .call()
                 .content();
@@ -41,14 +44,20 @@ public class ChatClientController {
      * @param message
      * @return
      */
-    @GetMapping(value = "/generateStream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> generateStream(@RequestParam(value = "message", defaultValue = "你是谁？") String message) {
+    @GetMapping(value = "/generateStream", produces = "text/html;charset=utf-8")
+    public Flux<String> generateStream(@RequestParam(value = "message", defaultValue = "你是谁？") String message,
+                                       @RequestParam(value = "chatId") String chatId
+    ) {
+
+        // 流式输出
         return chatClient.prompt()
+                .tools(new DateTimeTools()) // Function Call
+//                .system("请你扮演一名犬小哈 Java 项目实战专栏的客服人员")
                 .user(message) // 提示词
-                .stream() // 流式输出
-                .content()
-                // 确保每个 chunk 转为 SSE 的 data 行
-                .map(chunk -> "data: " + chunk + "\n\n");
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, chatId))
+                .stream()
+                .content();
+
     }
 
     /**
